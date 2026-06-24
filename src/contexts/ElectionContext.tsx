@@ -461,24 +461,52 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
   const resetSystem = useCallback(async () => {
     try {
       console.log("Initiating system vote reset...");
-      // 1. Delete all rows from Supabase votes table
+
       const deletedCount = await clearAllVotes();
-      console.log(`Supabase delete confirmed: ${deletedCount} rows removed.`);
 
-      // 2. Zero out vote counts & percentages on currently-loaded candidates
-      setChairs(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
-      setLeaders(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
+      console.log(
+        `Supabase delete confirmed: ${deletedCount} rows removed.`
+      );
 
-      // 3. Clear local vote records
+      // DEBUG CHECK
+      const remainingVotes = await fetchVotes();
+
+      console.log(
+        "Votes remaining after delete:",
+        remainingVotes.length
+      );
+
+      setChairs(prev =>
+        prev.map(c => ({
+          ...c,
+          votes: 0,
+          pct: 0,
+        }))
+      );
+
+      setLeaders(prev =>
+        prev.map(c => ({
+          ...c,
+          votes: 0,
+          pct: 0,
+        }))
+      );
+
       setVotes([]);
 
-      // 4. Reset hourly progress back to zero
-      setVotingProgress(prev => prev.map(v => ({ ...v, votes: 0 })));
+      setVotingProgress(prev =>
+        prev.map(v => ({
+          ...v,
+          votes: 0,
+        }))
+      );
 
-      // 5. Reset in-memory vote counter
       voteCounter = 0;
     } catch (error) {
-      console.error("Failed to reset votes in Supabase:", error);
+      console.error(
+        "Failed to reset votes in Supabase:",
+        error
+      );
       throw error;
     }
   }, []);
