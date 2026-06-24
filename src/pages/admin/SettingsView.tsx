@@ -13,6 +13,27 @@ export function SettingsView() {
     resetSystem,
   } = useElectionContext();
 
+  const [isResetting, setIsResetting] = React.useState(false);
+
+  const handleReset = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to reset the election? This will permanently delete all casted votes from Supabase and the dashboard. Candidates will NOT be deleted."
+      )
+    ) {
+      setIsResetting(true);
+      try {
+        await resetSystem();
+        alert("Election votes have been successfully reset.");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to reset system: " + (error instanceof Error ? error.message : String(error)));
+      } finally {
+        setIsResetting(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       {/* School Information */}
@@ -60,7 +81,15 @@ export function SettingsView() {
         <div className="flex flex-wrap gap-3">
           <Btn variant="ghost"><Download className="w-4 h-4" />Backup Data</Btn>
           <Btn variant="ghost"><Upload className="w-4 h-4" />Restore Data</Btn>
-          <Btn variant="danger" onClick={resetSystem}><Trash2 className="w-4 h-4" />Reset System</Btn>
+          <Btn variant="danger" onClick={handleReset} disabled={isResetting}>
+            {isResetting ? (
+              <span>Resetting...</span>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />Reset System
+              </>
+            )}
+          </Btn>
         </div>
       </div>
     </div>

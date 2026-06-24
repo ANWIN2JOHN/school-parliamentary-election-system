@@ -55,8 +55,17 @@ export function mapDbToVoteRecord(
     schoolLeaderSupabaseId:
       db.school_leader_candidate_id,
 
-    timestamp: db.created_at,
-
     reference: db.vote_reference,
   };
+}
+
+// Clear All Votes
+
+export async function clearAllVotes(): Promise<void> {
+  const { error } = await supabase
+    .from("votes")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+
+  if (error) throw error;
 }

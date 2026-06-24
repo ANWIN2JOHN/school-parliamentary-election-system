@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useEffect,
 } from "react";
-import { submitVote, fetchVotes } from "@/services/voteService";
+import { submitVote, fetchVotes, clearAllVotes } from "@/services/voteService";
 import { fetchCandidates } from "@/services/candidateService";
 import type {
   Candidate, VoteRecord, Election, SchoolSettings,
@@ -80,7 +80,7 @@ interface ElectionContextValue {
   ) => void;
 
   // Reset
-  resetSystem: () => void;
+  resetSystem: () => Promise<void>;
 }
 
 const ElectionContext = createContext<ElectionContextValue | null>(null);
@@ -509,12 +509,18 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
 
   // ── Reset ───────────────────────────────────────────────────────────────
 
-  const resetSystem = useCallback(() => {
-    setChairs(DEFAULT_CHAIRS.map(c => ({ ...c, votes: 0, pct: 0 })));
-    setLeaders(DEFAULT_LEADERS.map(c => ({ ...c, votes: 0, pct: 0 })));
-    setVotes([]);
-    setVotingProgress(DEFAULT_VOTING_PROGRESS.map(v => ({ ...v, votes: 0 })));
-    voteCounter = 0;
+  const resetSystem = useCallback(async () => {
+    try {
+      await clearAllVotes();
+      setChairs(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
+      setLeaders(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
+      setVotes([]);
+      setVotingProgress(prev => prev.map(v => ({ ...v, votes: 0 })));
+      voteCounter = 0;
+    } catch (error) {
+      console.error("Failed to reset votes in Supabase:", error);
+      throw error;
+    }
   }, []);
 
   // ── Value ───────────────────────────────────────────────────────────────
