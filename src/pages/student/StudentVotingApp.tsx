@@ -182,10 +182,10 @@ export function StudentVotingApp() {
             <div className="space-y-3 mb-6">
               {[{ label: "Chairperson", candidate: chairPick }, { label: "School Leader", candidate: leaderPick }].map(({ label, candidate }) => (
                 <div key={label} className="flex items-center gap-3 bg-slate-50 rounded-xl p-4">
-                  <ImageWithFallback src={candidate.photo} alt={candidate.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                  <ImageWithFallback src={candidate?.photo ?? ""} alt={candidate?.name ?? "Candidate"} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-slate-500 font-semibold">{label}</p>
-                    <p className="font-extrabold text-slate-900 truncate">{candidate.name}</p>
+                    <p className="font-extrabold text-slate-900 truncate">{candidate?.name ?? "No Candidate"}</p>
                   </div>
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                 </div>

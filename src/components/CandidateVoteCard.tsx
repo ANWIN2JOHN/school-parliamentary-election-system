@@ -11,6 +11,8 @@ interface CandidateVoteCardProps {
 }
 
 export function CandidateVoteCard({ candidate, selected, onSelect, accent }: CandidateVoteCardProps) {
+  if (!candidate) return null;
+
   const isBlue = accent === "blue";
   const selBorder = isBlue ? "border-blue-500" : "border-emerald-500";
   const selShadow = isBlue ? "shadow-blue-100" : "shadow-emerald-100";
@@ -31,7 +33,7 @@ export function CandidateVoteCard({ candidate, selected, onSelect, accent }: Can
       <div className="p-4">
         {/* Photo */}
         <div className="relative w-full aspect-square max-w-[120px] mx-auto rounded-xl overflow-hidden bg-slate-200 mb-3">
-          <ImageWithFallback src={candidate.photo} alt={candidate.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <ImageWithFallback src={candidate?.photo ?? ""} alt={candidate?.name ?? "Candidate"} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
           {selected && (
             <div className={`absolute inset-0 ${isBlue ? "bg-blue-600/15" : "bg-emerald-600/15"} flex items-end justify-end p-1.5`}>
               <div className={`w-6 h-6 rounded-full ${isBlue ? "bg-blue-600" : "bg-emerald-500"} flex items-center justify-center shadow`}>
@@ -43,7 +45,7 @@ export function CandidateVoteCard({ candidate, selected, onSelect, accent }: Can
 
         {/* Info */}
         <div className="text-center space-y-1.5">
-          <h3 className="font-extrabold text-slate-900 text-sm leading-tight">{candidate.name}</h3>
+          <h3 className="font-extrabold text-slate-900 text-sm leading-tight">{candidate?.name ?? ""}</h3>
         </div>
 
         {/* Button */}

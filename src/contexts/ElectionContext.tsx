@@ -331,6 +331,11 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
         setLeaders(
           DEFAULT_LEADERS.map(c => ({ ...c }))
         );
+
+        setVotes([]);
+        setVotingProgress(
+          DEFAULT_VOTING_PROGRESS.map(v => ({ ...v, votes: 0 }))
+        );
       }
 
 
