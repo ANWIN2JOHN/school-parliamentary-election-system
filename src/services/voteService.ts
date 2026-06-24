@@ -63,11 +63,19 @@ export function mapDbToVoteRecord(
 
 // Clear All Votes
 
-export async function clearAllVotes(): Promise<void> {
-  const { error } = await supabase
+export async function clearAllVotes(): Promise<number> {
+  const { data, error } = await supabase
     .from("votes")
     .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000");
+    .neq("id", "00000000-0000-0000-0000-000000000000")
+    .select("id");
 
-  if (error) throw error;
+  if (error) {
+    console.error("Failed to delete votes from Supabase:", error.message);
+    throw error;
+  }
+
+  const deletedCount = data?.length ?? 0;
+  console.log(`Successfully deleted ${deletedCount} votes from Supabase.`);
+  return deletedCount;
 }

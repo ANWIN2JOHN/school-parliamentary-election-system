@@ -460,8 +460,10 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
 
   const resetSystem = useCallback(async () => {
     try {
+      console.log("Initiating system vote reset...");
       // 1. Delete all rows from Supabase votes table
-      await clearAllVotes();
+      const deletedCount = await clearAllVotes();
+      console.log(`Supabase delete confirmed: ${deletedCount} rows removed.`);
 
       // 2. Zero out vote counts & percentages on currently-loaded candidates
       setChairs(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
