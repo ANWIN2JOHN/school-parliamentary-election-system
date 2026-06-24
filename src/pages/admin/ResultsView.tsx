@@ -5,8 +5,15 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { Btn } from "@/components/Btn";
 import { useElectionContext } from "@/contexts/ElectionContext";
 import { buildChartData, COLORS } from "@/data/candidates";
-import { getWinner } from "@/services/resultService";
 import { exportToExcel, exportToPDF, printPage } from "@/utils/exportUtils";
+
+// ─── Safe winner helper ──────────────────────────────────────────────────────
+// Only returns a winner if at least one vote has been cast for that position.
+function getSafeWinner(candidates: { name: string; votes: number; pct: number; photo?: string; id: number }[]) {
+  if (candidates.length === 0) return null;
+  const top = candidates.reduce((best, c) => (c.votes > best.votes ? c : best), candidates[0]);
+  return top.votes > 0 ? top : null;
+}
 
 export function ResultsView() {
   const {
@@ -20,50 +27,19 @@ export function ResultsView() {
   const chairChart = buildChartData(chairs);
   const leaderChart = buildChartData(leaders);
 
-  // Show "No votes recorded yet" if there are no votes, or if data is loading/missing
-  if (votes.length === 0 || chairs.length === 0 || leaders.length === 0) {
-    return (
-      <div className="space-y-6 max-w-7xl">
-        <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-            <Trophy className="w-8 h-8 text-slate-300" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800">No votes recorded yet</h3>
-          <p className="text-slate-500 text-sm mt-1">Standings and results will be calculated once voting begins.</p>
-        </div>
+  const hasVotes = votes.length > 0;
 
-        {/* Export Buttons (Disabled) */}
-        <div className="flex flex-wrap gap-3">
-          <Btn variant="ghost" disabled>
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Btn>
-          <Btn variant="ghost" disabled>
-            <Download className="w-4 h-4" />
-            Export Excel
-          </Btn>
-          <Btn variant="ghost" disabled>
-            <Printer className="w-4 h-4" />
-            Print Report
-          </Btn>
-        </div>
-      </div>
-    );
-  }
+  const chairWinner = getSafeWinner(chairs);
+  const leaderWinner = getSafeWinner(leaders);
 
   const winnerCards = [
-    {
-      label: "Chairperson",
-      winner: getWinner(chairs) ?? chairs[0] ?? null,
-    },
-    {
-      label: "School Leader",
-      winner: getWinner(leaders) ?? leaders[0] ?? null,
-    },
+    { label: "Chairperson", winner: chairWinner },
+    { label: "School Leader", winner: leaderWinner },
   ];
 
   return (
     <div className="space-y-6 max-w-7xl">
+
       {/* Winners */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {winnerCards.map(({ label, winner }) => (
@@ -91,27 +67,27 @@ export function ResultsView() {
 
                 <div>
                   <h3 className="text-xl font-extrabold">
-                    {winner.name ?? "No Candidate"}
+                    {winner.name ?? "Unknown"}
                   </h3>
 
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-white font-bold text-lg">
-                      {winner.votes > 0
-                        ? `${winner.votes} votes`
-                        : "0 votes"}
+                      {winner.votes} {winner.votes === 1 ? "vote" : "votes"}
                     </span>
 
                     <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                      {winner.pct > 0
-                        ? `${winner.pct}%`
-                        : "0%"}
+                      {winner.pct}%
                     </span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center p-4">
-                <p className="text-blue-200 text-sm font-semibold">No Winner Yet</p>
+              <div className="flex items-center justify-center py-4">
+                <p className="text-blue-200 text-sm font-semibold">
+                  {chairs.length === 0 && leaders.length === 0
+                    ? "Loading candidates…"
+                    : "No votes recorded yet"}
+                </p>
               </div>
             )}
           </div>
@@ -124,10 +100,7 @@ export function ResultsView() {
           { title: "Chairperson Votes", data: chairChart },
           { title: "School Leader Votes", data: leaderChart },
         ].map(({ title, data }) => {
-          const maxVotes = Math.max(
-            ...data.map((d) => d.votes),
-            1
-          );
+          const maxVotes = Math.max(...data.map((d) => d.votes), 1);
 
           return (
             <div
@@ -136,38 +109,44 @@ export function ResultsView() {
             >
               <SectionHeader title={title} />
 
-              <div className="space-y-3">
-                {data.map((entry, i) => (
-                  <div
-                    key={entry.name}
-                    className="flex items-center gap-3"
-                  >
-                    <span className="text-xs text-slate-600 font-semibold w-24 truncate flex-shrink-0">
-                      {entry.name}
-                    </span>
+              {data.length === 0 ? (
+                <p className="text-center text-slate-400 text-sm py-6">
+                  No candidates loaded
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {data.map((entry, i) => (
+                    <div
+                      key={entry.name}
+                      className="flex items-center gap-3"
+                    >
+                      <span className="text-xs text-slate-600 font-semibold w-24 truncate flex-shrink-0">
+                        {entry.name}
+                      </span>
 
-                    <div className="flex-1 bg-slate-100 rounded-full h-3">
-                      <div
-                        className="h-3 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${(entry.votes / maxVotes) * 100}%`,
-                          backgroundColor: COLORS[i],
-                        }}
-                      />
+                      <div className="flex-1 bg-slate-100 rounded-full h-3">
+                        <div
+                          className="h-3 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${(entry.votes / maxVotes) * 100}%`,
+                            backgroundColor: COLORS[i] ?? "#94a3b8",
+                          }}
+                        />
+                      </div>
+
+                      <span className="text-xs font-bold text-slate-700 w-8 text-right flex-shrink-0">
+                        {entry.votes}
+                      </span>
                     </div>
+                  ))}
 
-                    <span className="text-xs font-bold text-slate-700 w-8 text-right flex-shrink-0">
-                      {entry.votes}
-                    </span>
-                  </div>
-                ))}
-
-                {data.every((d) => d.votes === 0) && (
-                  <p className="text-center text-slate-400 text-sm py-4">
-                    No votes recorded yet
-                  </p>
-                )}
-              </div>
+                  {!hasVotes && (
+                    <p className="text-center text-slate-400 text-sm py-2">
+                      No votes recorded yet
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -185,60 +164,66 @@ export function ResultsView() {
           >
             <SectionHeader title={title} />
 
-            <div className="space-y-3">
-              {[...data]
-                .sort((a, b) => b.votes - a.votes)
-                .map((c, i) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-3"
-                  >
-                    <span
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-extrabold flex-shrink-0
-                    ${i === 0
-                          ? "bg-amber-100 text-amber-700"
-                          : i === 1
-                            ? "bg-slate-100 text-slate-600"
-                            : "bg-orange-50 text-orange-500"
-                        }`}
+            {data.length === 0 ? (
+              <p className="text-center text-slate-400 text-sm py-6">
+                No candidates loaded
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {[...data]
+                  .sort((a, b) => b.votes - a.votes)
+                  .map((c, i) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-3"
                     >
-                      {i + 1}
-                    </span>
+                      <span
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-extrabold flex-shrink-0
+                        ${i === 0
+                            ? "bg-amber-100 text-amber-700"
+                            : i === 1
+                              ? "bg-slate-100 text-slate-600"
+                              : "bg-orange-50 text-orange-500"
+                          }`}
+                      >
+                        {i + 1}
+                      </span>
 
-                    <ImageWithFallback
-                      src={c?.photo ?? ""}
-                      alt={c?.name ?? "Candidate"}
-                      className="w-8 h-8 rounded-lg object-cover bg-slate-200 flex-shrink-0"
-                    />
+                      <ImageWithFallback
+                        src={c?.photo ?? ""}
+                        alt={c?.name ?? "Candidate"}
+                        className="w-8 h-8 rounded-lg object-cover bg-slate-200 flex-shrink-0"
+                      />
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-slate-900 text-sm truncate">
-                          {c.name}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-900 text-sm truncate">
+                            {c?.name ?? "Unknown"}
+                          </span>
 
-                        <span className="text-slate-900 font-extrabold text-sm flex-shrink-0">
-                          {c.votes}
-                        </span>
+                          <span className="text-slate-900 font-extrabold text-sm flex-shrink-0">
+                            {c?.votes ?? 0}
+                          </span>
+                        </div>
+
+                        <div className="mt-1.5 bg-slate-100 rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full transition-all"
+                            style={{
+                              width: `${c?.pct ?? 0}%`,
+                              backgroundColor: COLORS[i] ?? "#94a3b8",
+                            }}
+                          />
+                        </div>
                       </div>
 
-                      <div className="mt-1.5 bg-slate-100 rounded-full h-1.5">
-                        <div
-                          className="h-1.5 rounded-full transition-all"
-                          style={{
-                            width: `${c.pct}%`,
-                            backgroundColor: COLORS[i],
-                          }}
-                        />
-                      </div>
+                      <span className="text-slate-400 text-xs flex-shrink-0 w-10 text-right font-semibold">
+                        {c?.pct ?? 0}%
+                      </span>
                     </div>
-
-                    <span className="text-slate-400 text-xs flex-shrink-0 w-10 text-right font-semibold">
-                      {c.pct}%
-                    </span>
-                  </div>
-                ))}
-            </div>
+                  ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -247,6 +232,7 @@ export function ResultsView() {
       <div className="flex flex-wrap gap-3">
         <Btn
           variant="ghost"
+          disabled={!hasVotes}
           onClick={() =>
             exportToPDF(
               chairs,
@@ -262,6 +248,7 @@ export function ResultsView() {
 
         <Btn
           variant="ghost"
+          disabled={!hasVotes}
           onClick={() =>
             exportToExcel(
               chairs,
@@ -276,7 +263,7 @@ export function ResultsView() {
           Export Excel
         </Btn>
 
-        <Btn variant="ghost" onClick={printPage}>
+        <Btn variant="ghost" disabled={!hasVotes} onClick={printPage}>
           <Printer className="w-4 h-4" />
           Print Report
         </Btn>

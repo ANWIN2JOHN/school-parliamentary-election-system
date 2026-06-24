@@ -66,24 +66,29 @@ export function DashboardView() {
           <SectionHeader title="Candidate Vote Distribution" subtitle="Live standings by position" />
           <div className="space-y-6">
             {[{ label: "Chairperson", data: chairChart }, { label: "School Leader", data: leaderChart }].map(({ label, data }) => {
-              const maxVotes = Math.max(...data.map(d => d.votes));
+              // Guard: Math.max on empty array → -Infinity; default to 1 so bars show 0%
+              const maxVotes = data.length > 0 ? Math.max(...data.map(d => d.votes), 0) : 0;
               return (
                 <div key={label}>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{label}</p>
-                  <div className="space-y-2.5">
-                    {data.map((entry, i) => (
-                      <div key={entry.name} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-600 font-semibold w-24 truncate flex-shrink-0">{entry.name}</span>
-                        <div className="flex-1 bg-slate-100 rounded-full h-2.5">
-                          <div
-                            className="h-2.5 rounded-full transition-all duration-500"
-                            style={{ width: maxVotes > 0 ? `${(entry.votes / maxVotes) * 100}%` : "0%", backgroundColor: COLORS[i] }}
-                          />
+                  {data.length === 0 ? (
+                    <p className="text-slate-400 text-xs py-2">No candidates loaded</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {data.map((entry, i) => (
+                        <div key={entry.name ?? i} className="flex items-center gap-3">
+                          <span className="text-xs text-slate-600 font-semibold w-24 truncate flex-shrink-0">{entry.name ?? "—"}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-2.5">
+                            <div
+                              className="h-2.5 rounded-full transition-all duration-500"
+                              style={{ width: maxVotes > 0 ? `${(entry.votes / maxVotes) * 100}%` : "0%", backgroundColor: COLORS[i] ?? "#94a3b8" }}
+                            />
+                          </div>
+                          <span className="text-xs font-bold text-slate-700 w-8 text-right flex-shrink-0">{entry.votes}</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-700 w-8 text-right flex-shrink-0">{entry.votes}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

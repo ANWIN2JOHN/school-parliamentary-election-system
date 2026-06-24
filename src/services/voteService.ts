@@ -55,6 +55,8 @@ export function mapDbToVoteRecord(
     schoolLeaderSupabaseId:
       db.school_leader_candidate_id,
 
+    timestamp: db.created_at,
+
     reference: db.vote_reference,
   };
 }

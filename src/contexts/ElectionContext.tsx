@@ -13,13 +13,9 @@ import type {
   BrandingSettings, VotingProgressEntry,
 } from "@/types";
 import {
-  CHAIRS as DEFAULT_CHAIRS,
-  LEADERS as DEFAULT_LEADERS,
   DEFAULT_VOTING_PROGRESS,
   TOTAL_STUDENTS,
 } from "@/data/candidates";
-
-
 
 // ─── Context Value ──────────────────────────────────────────────────────────
 interface ElectionContextValue {
@@ -158,8 +154,6 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
   const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>({ ...DEFAULT_BRANDING_SETTINGS });
   const [selectedThemeColor, setSelectedThemeColor] = useState("#2563EB");
 
-  // ── Load candidates and votes from Supabase ─────────────────────────────
-
   useEffect(() => {
     async function loadData() {
       try {
@@ -168,77 +162,50 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
           fetchVotes(),
         ]);
 
-
         // Convert DB votes → VoteRecord
         const voteRecords: VoteRecord[] = dbVotes.map(v => ({
           id: v.id,
-
           chairpersonId: 0,
           schoolLeaderId: 0,
-
-          chairpersonSupabaseId:
-            v.chairperson_candidate_id,
-
-          schoolLeaderSupabaseId:
-            v.school_leader_candidate_id,
-
+          chairpersonSupabaseId: v.chairperson_candidate_id,
+          schoolLeaderSupabaseId: v.school_leader_candidate_id,
           timestamp: v.created_at,
-
           reference: v.vote_reference,
         }));
 
         // Map candidate UUID → local numeric ID
         const candidateMap = new Map<string, number>();
-
         candidates.forEach(c => {
-          if (c.supabaseId) {
-            candidateMap.set(c.supabaseId, c.id);
-          }
+          if (c.supabaseId) candidateMap.set(c.supabaseId, c.id);
         });
 
         // Resolve UUIDs back to local IDs
         const resolvedVotes = voteRecords.map(v => ({
           ...v,
-
-          chairpersonId:
-            v.chairpersonSupabaseId
-              ? (
-                candidateMap.get(
-                  v.chairpersonSupabaseId
-                ) ?? 0
-              )
-              : 0,
-
-          schoolLeaderId:
-            v.schoolLeaderSupabaseId
-              ? (
-                candidateMap.get(
-                  v.schoolLeaderSupabaseId
-                ) ?? 0
-              )
-              : 0,
+          chairpersonId: v.chairpersonSupabaseId
+            ? (candidateMap.get(v.chairpersonSupabaseId) ?? 0)
+            : 0,
+          schoolLeaderId: v.schoolLeaderSupabaseId
+            ? (candidateMap.get(v.schoolLeaderSupabaseId) ?? 0)
+            : 0,
         }));
 
-        // Count votes per candidate
+        // Count votes per candidate (safe when resolvedVotes is empty)
         const chairVotesMap: Record<number, number> = {};
         const leaderVotesMap: Record<number, number> = {};
 
         resolvedVotes.forEach(v => {
           if (v.chairpersonId) {
-            chairVotesMap[v.chairpersonId] =
-              (chairVotesMap[v.chairpersonId] ?? 0) + 1;
+            chairVotesMap[v.chairpersonId] = (chairVotesMap[v.chairpersonId] ?? 0) + 1;
           }
-
           if (v.schoolLeaderId) {
-            leaderVotesMap[v.schoolLeaderId] =
-              (leaderVotesMap[v.schoolLeaderId] ?? 0) + 1;
+            leaderVotesMap[v.schoolLeaderId] = (leaderVotesMap[v.schoolLeaderId] ?? 0) + 1;
           }
         });
 
-        // Apply vote counts
+        // Apply vote counts — defaults to 0 if no votes exist
         const updatedCandidates = candidates.map(c => ({
           ...c,
-
           votes:
             c.position.toLowerCase() === "chairperson"
               ? (chairVotesMap[c.id] ?? 0)
@@ -248,97 +215,73 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
         const finalChairs = updatedCandidates.filter(
           c => c.position.toLowerCase() === "chairperson"
         );
-
         const finalLeaders = updatedCandidates.filter(
           c => c.position.toLowerCase() === "school leader"
         );
 
-        // Calculate percentages
-        const totalChairVotes = finalChairs.reduce(
-          (sum, c) => sum + c.votes,
-          0
-        );
-
-        const totalLeaderVotes = finalLeaders.reduce(
-          (sum, c) => sum + c.votes,
-          0
-        );
+        // Calculate percentages safely
+        const totalChairVotes = finalChairs.reduce((sum, c) => sum + c.votes, 0);
+        const totalLeaderVotes = finalLeaders.reduce((sum, c) => sum + c.votes, 0);
 
         setChairs(
           finalChairs.map(c => ({
             ...c,
-            pct:
-              totalChairVotes > 0
-                ? Math.round(
-                  (c.votes / totalChairVotes) * 100
-                )
-                : 0,
+            pct: totalChairVotes > 0 ? Math.round((c.votes / totalChairVotes) * 100) : 0,
           }))
         );
 
         setLeaders(
           finalLeaders.map(c => ({
             ...c,
-            pct:
-              totalLeaderVotes > 0
-                ? Math.round(
-                  (c.votes / totalLeaderVotes) * 100
-                )
-                : 0,
+            pct: totalLeaderVotes > 0 ? Math.round((c.votes / totalLeaderVotes) * 100) : 0,
           }))
         );
 
+        // Safe with empty array — setVotes([]) is perfectly fine
         setVotes(resolvedVotes);
 
-        // Hourly progress
+        // Rebuild hourly progress from resolved votes
         const progressMap: Record<string, number> = {};
-
         resolvedVotes.forEach(v => {
           const date = new Date(v.timestamp);
-
-          const bucket =
-            date.getHours() < 12
-              ? `${date.getHours() || 12} AM`
-              : `${date.getHours() === 12
-                ? 12
-                : date.getHours() - 12
-              } PM`;
-
-          progressMap[bucket] =
-            (progressMap[bucket] ?? 0) + 1;
+          const h = date.getHours();
+          const bucket = h < 12
+            ? `${h === 0 ? 12 : h} AM`
+            : `${h === 12 ? 12 : h - 12} PM`;
+          progressMap[bucket] = (progressMap[bucket] ?? 0) + 1;
         });
 
         setVotingProgress(prev =>
-          prev.map(entry => ({
-            ...entry,
-            votes: progressMap[entry.time] ?? 0,
-          }))
+          prev.map(entry => ({ ...entry, votes: progressMap[entry.time] ?? 0 }))
         );
 
         console.log(
           `Loaded ${candidates.length} candidates and ${resolvedVotes.length} votes from Supabase`
         );
       } catch (error) {
-        console.error(
-          "Failed to load data from Supabase:",
-          error
-        );
+        // On any error: keep candidates loaded if possible, clear votes cleanly
+        console.error("Failed to load data from Supabase:", error);
 
-        setChairs(
-          DEFAULT_CHAIRS.map(c => ({ ...c }))
-        );
-
-        setLeaders(
-          DEFAULT_LEADERS.map(c => ({ ...c }))
-        );
+        // Attempt to still load candidates alone so the UI doesn't crash
+        try {
+          const candidates = await fetchCandidates();
+          const finalChairs = candidates.filter(
+            c => c.position.toLowerCase() === "chairperson"
+          );
+          const finalLeaders = candidates.filter(
+            c => c.position.toLowerCase() === "school leader"
+          );
+          setChairs(finalChairs.map(c => ({ ...c, votes: 0, pct: 0 })));
+          setLeaders(finalLeaders.map(c => ({ ...c, votes: 0, pct: 0 })));
+        } catch {
+          // Absolute fallback — leave chairs/leaders as empty arrays
+          setChairs([]);
+          setLeaders([]);
+        }
 
         setVotes([]);
-        setVotingProgress(
-          DEFAULT_VOTING_PROGRESS.map(v => ({ ...v, votes: 0 }))
-        );
+        setVotingProgress(DEFAULT_VOTING_PROGRESS.map(v => ({ ...v, votes: 0 })));
       }
-
-
     }
 
     loadData();
@@ -513,14 +456,24 @@ export function ElectionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Reset ───────────────────────────────────────────────────────────────
+  // Clears only the votes table. Candidates are preserved as-is from Supabase.
 
   const resetSystem = useCallback(async () => {
     try {
+      // 1. Delete all rows from Supabase votes table
       await clearAllVotes();
+
+      // 2. Zero out vote counts & percentages on currently-loaded candidates
       setChairs(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
       setLeaders(prev => prev.map(c => ({ ...c, votes: 0, pct: 0 })));
+
+      // 3. Clear local vote records
       setVotes([]);
+
+      // 4. Reset hourly progress back to zero
       setVotingProgress(prev => prev.map(v => ({ ...v, votes: 0 })));
+
+      // 5. Reset in-memory vote counter
       voteCounter = 0;
     } catch (error) {
       console.error("Failed to reset votes in Supabase:", error);

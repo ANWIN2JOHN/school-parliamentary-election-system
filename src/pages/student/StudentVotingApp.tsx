@@ -62,6 +62,9 @@ export function StudentVotingApp() {
     return <SuccessScreen onDone={handleReset} voteRef={voteRef} voteTimestamp={voteTimestamp} />;
   }
 
+  // Show loading state if candidates haven't loaded from Supabase yet
+  const isLoading = chairs.length === 0 || leaders.length === 0;
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
@@ -99,14 +102,18 @@ export function StudentVotingApp() {
             </div>
             {selectedChair !== null && <Badge color="blue"><Check className="w-3 h-3" />Selected</Badge>}
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {chairs.map(c => (
-              <CandidateVoteCard key={c.id} candidate={c}
-                selected={selectedChair === c.id}
-                onSelect={() => setSelectedChair(c.id === selectedChair ? null : c.id)}
-                accent="blue" />
-            ))}
-          </div>
+          {isLoading ? (
+            <p className="text-slate-400 text-sm font-medium py-4 animate-pulse">Loading candidates…</p>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {chairs.map(c => (
+                <CandidateVoteCard key={c.id} candidate={c}
+                  selected={selectedChair === c.id}
+                  onSelect={() => setSelectedChair(c.id === selectedChair ? null : c.id)}
+                  accent="blue" />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Section 2 — School Leader */}
@@ -119,14 +126,18 @@ export function StudentVotingApp() {
             </div>
             {selectedLeader !== null && <Badge color="green"><Check className="w-3 h-3" />Selected</Badge>}
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {leaders.map(c => (
-              <CandidateVoteCard key={c.id} candidate={c}
-                selected={selectedLeader === c.id}
-                onSelect={() => setSelectedLeader(c.id === selectedLeader ? null : c.id)}
-                accent="green" />
-            ))}
-          </div>
+          {isLoading ? (
+            <p className="text-slate-400 text-sm font-medium py-4 animate-pulse">Loading candidates…</p>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {leaders.map(c => (
+                <CandidateVoteCard key={c.id} candidate={c}
+                  selected={selectedLeader === c.id}
+                  onSelect={() => setSelectedLeader(c.id === selectedLeader ? null : c.id)}
+                  accent="green" />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Summary & submit */}

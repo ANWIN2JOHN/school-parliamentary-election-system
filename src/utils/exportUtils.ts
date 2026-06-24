@@ -124,7 +124,7 @@ export function exportToPDF(
     body: chairRows,
     startY: 81,
     theme: "striped",
-    headStyles: { fillColor: primaryColor, halign: "left" },
+    headStyles: { fillColor: primaryColor as [number, number, number], halign: "left" },
     columnStyles: {
       0: { cellWidth: 15 },
       4: { halign: "right" },
@@ -211,7 +211,7 @@ export function exportToPDF(
   }
 
   // Footer on all pages
-  const totalPages = doc.internal.getNumberOfPages();
+  const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
