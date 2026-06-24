@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  GraduationCap, Vote, Shield, X, RefreshCw,
+  GraduationCap, Vote, Shield, X, RefreshCw, AlertCircle,
 } from "lucide-react";
 import { Field } from "@/components/Field";
 import { Btn } from "@/components/Btn";
@@ -14,13 +14,24 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async () => {
+    setError("");
     setLoading(true);
-    await login(username, password);
-    setLoading(false);
-    setShowAdminModal(false);
-    navigate("/admin");
+    try {
+      const success = await login(username, password);
+      if (success) {
+        setShowAdminModal(false);
+        navigate("/admin/dashboard");
+      } else {
+        setError("Invalid username or password. Please try again.");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStudentEntry = () => {
@@ -117,7 +128,12 @@ export function LoginPage() {
 
               {/* ── Secondary: Admin login ── */}
               <button
-                onClick={() => setShowAdminModal(true)}
+                onClick={() => {
+                  setUsername("");
+                  setPassword("");
+                  setError("");
+                  setShowAdminModal(true);
+                }}
                 className="w-full py-3.5 px-6 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-slate-700 active:bg-slate-900 transition-all duration-150 flex items-center justify-center gap-2.5 shadow-sm"
               >
                 <Shield className="w-4 h-4 text-slate-300" />
@@ -169,6 +185,13 @@ export function LoginPage() {
                 <Field label="Username" placeholder="admin@greenfield.edu" value={username} onChange={e => setUsername(e.target.value)} />
                 <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
               </div>
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start gap-2.5 text-xs font-medium">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <Btn variant="primary" size="lg" className="w-full mt-5 justify-center" onClick={handleLogin} disabled={loading}>
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}

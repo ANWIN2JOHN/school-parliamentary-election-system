@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
 } from "react";
 
 import { supabase } from "@/services/supabase";
@@ -10,6 +11,7 @@ import { supabase } from "@/services/supabase";
 interface AuthContextValue {
   isAuthenticated: boolean;
   isAdmin: boolean;
+  loading: boolean;
   login: (
     username: string,
     password: string
@@ -17,71 +19,83 @@ interface AuthContextValue {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(
-  null
-);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isAuthenticated, setIsAuthenticated] =
-    useState(
-      localStorage.getItem("admin-auth") ===
-      "true"
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check initial session
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session);
+      } catch (err) {
+        console.error("Error retrieving Supabase Auth session:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setIsAuthenticated(!!session);
+        setLoading(false);
+      }
     );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const login = useCallback(
     async (
       username: string,
       password: string
     ): Promise<boolean> => {
+      setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("admins")
-          .select("*")
-          .eq("username", username)
-          .eq("password", password)
-          .maybeSingle();
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: username,
+          password: password,
+        });
 
         if (error) {
-          console.error(
-            "Login error:",
-            error
-          );
+          console.error("Login failed:", error.message);
           return false;
         }
 
-        if (!data) {
-          console.warn(
-            "Invalid username or password"
-          );
-          return false;
-        }
-
-        setIsAuthenticated(true);
-
-        localStorage.setItem(
-          "admin-auth",
-          "true"
-        );
-
-        return true;
+        setIsAuthenticated(!!data?.session);
+        return !!data?.session;
       } catch (err) {
-        console.error(
-          "Authentication failed:",
-          err
-        );
+        console.error("Authentication failed:", err);
         return false;
+      } finally {
+        setLoading(false);
       }
     },
     []
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem("admin-auth");
-    setIsAuthenticated(false);
+    setLoading(true);
+    supabase.auth.signOut()
+      .catch((err) => {
+        console.error("Logout failed:", err);
+      })
+      .finally(() => {
+        setIsAuthenticated(false);
+        setLoading(false);
+      });
   }, []);
 
   return (
@@ -89,6 +103,7 @@ export function AuthProvider({
       value={{
         isAuthenticated,
         isAdmin: isAuthenticated,
+        loading,
         login,
         logout,
       }}
